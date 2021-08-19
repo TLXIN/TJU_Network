@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "tju_tcp.h": "c",
+        "global.h": "c",
+        "debug.h": "c",
+        "tju_packet.h": "c",
+        "kernel.h": "c"
+    },
+    "search-online.search-engine": "Bing"
+}
