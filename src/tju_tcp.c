@@ -116,7 +116,7 @@ int tju_connect(tju_tcp_t* sock, tju_sock_addr target_addr){
     //随后进入SYN_SENT
     char* shakehand1;
     shakehand1 = create_packet_buf(local_addr.port , target_addr.port 
-                                    , 1000 , 0 , 20 ,20
+                                    , get_ISN(1000) , 0 , DEFAULT_HEADER_LEN , DEFAULT_HEADER_LEN
                                     , SYN , 0 , 0
                                     , NULL ,0);
 
@@ -230,8 +230,7 @@ int tju_handle_packet(tju_tcp_t* sock, char* pkt){
             char* shakehand2;
             //源和目的反过来
             shakehand2 = create_packet_buf(  get_dst(pkt) , get_src(pkt)
-                                            , 2000 , new_ack , 20 ,20
-                                            , SYN_ACK , 0 , 0
+                                            , get_ISN(2000) , new_ack , DEFAULT_HEADER_LEN , DEFAULT_HEADER_LEN
                                             , NULL ,0);
             sendToLayer3( shakehand2 , 20);
             printf("发送shakehand2 \n");
@@ -246,7 +245,7 @@ int tju_handle_packet(tju_tcp_t* sock, char* pkt){
             char* shakehand3; 
             //上一个包的ACK就是这个的seq
             shakehand3 = create_packet_buf(  get_dst(pkt) , get_src(pkt)
-                                            , get_ack(pkt) , new_ack , 20 ,20
+                                            , get_ack(pkt) , new_ack , DEFAULT_HEADER_LEN , DEFAULT_HEADER_LEN
                                             , ACK , 0 , 0
                                             , NULL ,0);
             sendToLayer3(shakehand3 , 20);
@@ -271,5 +270,8 @@ int tju_handle_packet(tju_tcp_t* sock, char* pkt){
 }
 
 int tju_close (tju_tcp_t* sock){
+    char* close1;
+    /*close1 = create_packet_buf(sock->established_local_addr.port , sock->established_remote_addr.port
+                                ,2000 , )*/
     return 0;
 }
