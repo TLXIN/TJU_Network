@@ -38,11 +38,17 @@ int main(int argc, char **argv) {
     tju_send(new_conn, "hello tju", 10);
 
     char buf[2021];
-    tju_recv(new_conn, (void*)buf, 12);
+ /*   tju_recv(new_conn, (void*)buf, 6);
     printf("server recv %s\n", buf);
 
     tju_recv(new_conn, (void*)buf, 10);
-    printf("server recv %s\n", buf);
+    printf("server recv %s\n", buf);*/
+    while (1)
+    {
+        tju_recv(new_conn , (void*)buf , 1);
+        printf("server recv %s\n", buf);
+    }
+    
 
 
     return EXIT_SUCCESS;

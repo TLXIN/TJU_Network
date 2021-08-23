@@ -32,7 +32,9 @@
 #define MAX_DLEN 1375 	// 最大包内数据长度
 #define MAX_LEN 1400 	// 最大包长度
 
-
+//发送和接收缓冲区的大小
+#define TCP_SEND_BUF_LEN  1024 
+#define TCP_RECV_BUF_LEN  1024
 
 // TCP socket 状态定义
 #define CLOSED 0
@@ -70,9 +72,8 @@
 // 注释的内容如果想用就可以用 不想用就删掉 仅仅提供思路和灵感
 typedef struct {
 	uint16_t window_size;
-
-//   uint32_t base;
-//   uint32_t nextseq;
+	uint32_t base;
+    uint32_t nextseq;
 //   uint32_t estmated_rtt;
 //   int ack_cnt;
 //   pthread_mutex_t ack_cnt_lock;

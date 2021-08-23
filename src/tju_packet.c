@@ -140,6 +140,11 @@ int is_SYN(char* msg){
 uint32_t get_ISN(uint32_t isn){
     return isn;
 }
+
+int before(uint32_t seq1, uint32_t seq2)
+{
+	return (int)(seq1-seq2) < 0;
+}
 /*############################################## 下面是实现上面函数功能的辅助函数 用户没必要调用 ##############################################*/
 
 

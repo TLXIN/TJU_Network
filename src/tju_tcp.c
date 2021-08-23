@@ -22,8 +22,8 @@ tju_tcp_t* tju_socket(){
         exit(-1);
     }
 
-    sock->window.wnd_recv = NULL;
-    sock->window.wnd_recv = NULL;
+    sock->window->wnd_send = (sender_window_t*)malloc(sizeof(sender_window_t));
+    sock->window->wnd_recv = (receiver_window_t)malloc(sizeof(receiver_window_t));
 
     return sock;
 }
@@ -119,6 +119,7 @@ int tju_connect(tju_tcp_t* sock, tju_sock_addr target_addr){
                                     , get_ISN(1000) , 0 , DEFAULT_HEADER_LEN , DEFAULT_HEADER_LEN
                                     , SYN , 0 , 0
                                     , NULL ,0);
+    sock->window->wnd_send.nextseq = get_ISN(1000) + 1 ;
 
     sendToLayer3( shakehand1 , 20 );
     sock->state = SYN_SENT;
@@ -150,11 +151,10 @@ int tju_send(tju_tcp_t* sock, const void *buffer, int len){
 
     return 0;
 }
-int tju_recv(tju_tcp_t* sock, void *buffer, int len){
+int  tju_recv(tju_tcp_t* sock, void *buffer, int len){
     while(sock->received_len<=0){
         // 阻塞
     }
-
     while(pthread_mutex_lock(&(sock->recv_lock)) != 0); // 加锁
 
     int read_len = 0;
@@ -172,7 +172,7 @@ int tju_recv(tju_tcp_t* sock, void *buffer, int len){
         free(sock->received_buf);
         sock->received_len -= read_len;
         sock->received_buf = new_buf;
-    }else{
+    }else{ //清空接受缓冲区
         free(sock->received_buf);
         sock->received_buf = NULL;
         sock->received_len = 0;
@@ -231,7 +231,8 @@ int tju_handle_packet(tju_tcp_t* sock, char* pkt){
             //源和目的反过来
             shakehand2 = create_packet_buf(  get_dst(pkt) , get_src(pkt)
                                             , get_ISN(2000) , new_ack , DEFAULT_HEADER_LEN , DEFAULT_HEADER_LEN
-                                            , NULL ,0);
+                                            ,SYN_ACK, 0 , 0
+                                            ,NULL ,0);
             sendToLayer3( shakehand2 , 20);
             printf("发送shakehand2 \n");
         }

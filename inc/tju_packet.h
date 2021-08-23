@@ -18,15 +18,12 @@
 #define SYN_FLAG_MASK 0x8
 #define ACK_FLAG_MASK 0x4
 #define FIN_FLAG_MASK 0x2
-#define after(seq2, seq1) before(seq1, seq2)
+//#define after(seq2, seq1) before(seq1, seq2)
 
 //套用Linux的实现
 //before（）返回1时代表 seq1 在 seq2 前面
 //after（）返回1代表 seq1 在 seq2 后面
-int before(uint32_t seq1, uint32_t seq2)
-{
-	return (int)(seq1-seq2) < 0;
-}
+int before(uint32_t seq1, uint32_t seq2);
 
 //定义标志位
 // 0:无 1:FIN 2：ACK 3：SYN  4-7：无
