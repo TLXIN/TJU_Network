@@ -5,4 +5,5 @@
 
 void display_pkt(char* pkt);
 
+void print_SKB(SKB_HEAD* head);
 #endif

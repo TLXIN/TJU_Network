@@ -11,11 +11,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "SKB.h"
 #include "global.h"
 #include <pthread.h>
 #include <sys/select.h>
 #include <arpa/inet.h>
 
+//#define DEBUG_PKTGET 0
+//#define DEBUG_SHAKEHAND 1
+#define DEBUG_SKB 2
+#define DEBUG_SEND_THREAD 3
+
+ 
 // 单位是byte
 #define SIZE32 4
 #define SIZE16 2
@@ -33,8 +40,8 @@
 #define MAX_LEN 1400 	// 最大包长度
 
 //发送和接收缓冲区的大小
-#define TCP_SEND_BUF_LEN  1024 
-#define TCP_RECV_BUF_LEN  1024
+//#define TCP_SEND_BUF_LEN  1024 
+//#define TCP_RECV_BUF_LEN  1024
 
 // TCP socket 状态定义
 #define CLOSED 0
@@ -67,6 +74,7 @@
 
 // TCP 接受窗口大小
 #define TCP_RECVWN_SIZE 32*MAX_DLEN // 比如最多放32个满载数据包
+#define TCP_SENDWN_SIZE 32*MAX_DLEN
 
 // TCP 发送窗口
 // 注释的内容如果想用就可以用 不想用就删掉 仅仅提供思路和灵感
@@ -117,7 +125,7 @@ typedef struct {
 	tju_sock_addr established_remote_addr; // 存放建立连接后 连接对方的 IP和端口
 
 	pthread_mutex_t send_lock; // 发送数据锁
-	char* sending_buf; // 发送数据缓存区
+	SKB_HEAD* send_buf_head;// 发送数据缓存区
 	int sending_len; // 发送数据缓存长度
 
 	pthread_mutex_t recv_lock; // 接收数据锁
@@ -134,5 +142,9 @@ typedef struct {
 	tju_tcp_t* syns_queue[SYNS_Queue_LEN];
 	tju_tcp_t* accept_queue[ACCEPT_Queue_LEN];
 } tju_sock_queue;
+
+int add_to_skb(tju_tcp_t* sock , const void* buffer , int len);
+ 
+void* send_thread_func(void* arg);
 
 #endif

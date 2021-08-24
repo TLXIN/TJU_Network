@@ -8,7 +8,8 @@ FLAGS = -pthread -g -ggdb -DDEBUG -I$(INC_DIR)
 OBJS = $(BUILD_DIR)/tju_packet.o \
 	   $(BUILD_DIR)/kernel.o \
 	   $(BUILD_DIR)/tju_tcp.o \
-	   $(BUILD_DIR)/debug.o
+	   $(BUILD_DIR)/debug.o \
+	   $(BUILD_DIR)/SKB.o
 
 
 

@@ -9,8 +9,14 @@ tju_tcp_t* tju_socket(){
     tju_tcp_t* sock = (tju_tcp_t*)malloc(sizeof(tju_tcp_t));
     sock->state = CLOSED;
     
-    pthread_mutex_init(&(sock->send_lock), NULL);
-    sock->sending_buf = NULL;
+    pthread_mutex_init(&(sock->send_lock), NULL);  
+
+    //创建缓冲区
+    sock -> send_buf_head = (SKB_HEAD*)malloc(sizeof(SKB_HEAD));
+    sock -> send_buf_head -> next = NULL;
+    sock -> send_buf_head -> seq = 1 ;
+    sock -> send_buf_head -> block_number = 0;
+    sock -> send_buf_head -> total_size = 0; 
     sock->sending_len = 0;
 
     pthread_mutex_init(&(sock->recv_lock), NULL);
@@ -22,8 +28,12 @@ tju_tcp_t* tju_socket(){
         exit(-1);
     }
 
-    sock->window->wnd_send = (sender_window_t*)malloc(sizeof(sender_window_t));
-    sock->window->wnd_recv = (receiver_window_t)malloc(sizeof(receiver_window_t));
+    /*sock->window.wnd_send = (sender_window_t*)malloc(sizeof(sender_window_t));
+    sock->window.wnd_recv = (receiver_window_t)malloc(sizeof(receiver_window_t));*/
+
+    //激活发送线程
+    //这里listen的socket也会产生一个用于发送的线程，但是其实listen的socket只需要发SYN+ACK就行了
+    //基于一致性的考虑，这里也为listen分配线程
 
     return sock;
 }
@@ -112,24 +122,37 @@ int tju_connect(tju_tcp_t* sock, tju_sock_addr target_addr){
     // 循环跳出的条件是socket的状态变为ESTABLISHED 表面看上去就是 正在连接中 阻塞
     // 而状态的改变在别的地方进行 在我们这就是tju_handle_packet
 
-    //使用UDP发送SYN报文 SYN = 1 ，ACK = 0 ， seq = 随机（取1000）
+ 
+
+    //使用UDP发送SYN报文 SYN = 1 ，ACK = 0 ， seq = 随机（取0）
     //随后进入SYN_SENT
     char* shakehand1;
     shakehand1 = create_packet_buf(local_addr.port , target_addr.port 
-                                    , get_ISN(1000) , 0 , DEFAULT_HEADER_LEN , DEFAULT_HEADER_LEN
+                                    , get_ISN(0) , 0 , DEFAULT_HEADER_LEN , DEFAULT_HEADER_LEN
                                     , SYN , 0 , 0
                                     , NULL ,0);
-    sock->window->wnd_send.nextseq = get_ISN(1000) + 1 ;
-
     sendToLayer3( shakehand1 , 20 );
     sock->state = SYN_SENT;
-    printf("send shakehand1 SYN \n");
+
+    #ifdef DEBUG_SHAKEHAND  
+        printf("send shakehand1 SYN \n");
+    #endif
 
     while(1){
         if(sock -> state == ESTABLISHED){
-        printf("ESTABLISHED!!!\n");
         printf("建立在客户端上的Socket的hash为： %d \n",cal_hash(sock -> established_local_addr.ip , sock -> established_local_addr.port
                                                                 ,sock -> established_remote_addr.ip , sock -> established_remote_addr.port));
+        pthread_t send_thread_id = 1002;
+
+        //出于种种原因，不能让握手包走buffer
+        //也就是说，这个接收线程得等到连接建立后才可以打开
+
+        int rst = pthread_create(&send_thread_id , NULL , send_thread_func , (void*)(&hashval) );
+        if (rst<0){
+            printf("ERROR: create send thread error \n");
+            exit(-1); 
+        }
+
         return 0;
         }
     }
@@ -137,20 +160,14 @@ int tju_connect(tju_tcp_t* sock, tju_sock_addr target_addr){
 
 int tju_send(tju_tcp_t* sock, const void *buffer, int len){
     // 这里当然不能直接简单地调用sendToLayer3
-    char* data = malloc(len);
-    memcpy(data, buffer, len);
-
-    char* msg;
-    uint32_t seq = 464;
-    uint16_t plen = DEFAULT_HEADER_LEN + len;
-
-    msg = create_packet_buf(sock->established_local_addr.port, sock->established_remote_addr.port, seq, 0, 
-              DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0, data, len);
-
-    sendToLayer3(msg, plen);
-
-    return 0;
+    // 这里要把数据写到SKB中
+    // 然后就可以返回了
+    // 返回成功写入的字节数，如果SKB的可用空间小于len的话，就阻塞。
+    add_to_skb(sock , buffer , len );
+    printf("add to skb !\n");
+    return len;
 }
+
 int  tju_recv(tju_tcp_t* sock, void *buffer, int len){
     while(sock->received_len<=0){
         // 阻塞
@@ -209,7 +226,11 @@ int tju_handle_packet(tju_tcp_t* sock, char* pkt){
     case LISTEN: //期望收到SYN = 1 ACK = 0
         if( is_SYN(pkt) && (!is_ACK(pkt)) ){ 
             //这里要建立一个新的socket，并放入半连接队列中
-            printf("接受到s1\n");
+
+            #ifdef DEBUG_SHAKEHAND
+                printf("接受到s1\n");
+            #endif
+
             sock->state = SYN_RECV;
             
             //新建一个socket（半连接）
@@ -220,7 +241,10 @@ int tju_handle_packet(tju_tcp_t* sock, char* pkt){
             new_sock -> established_local_addr.port  = get_dst(pkt);
 
             new_sock -> state = SYN_RECV;
-            printf("新socket创建完成~\n");
+
+            #ifdef DEBUG_SHAKEHAND
+                printf("新socket创建完成~\n");
+            #endif
 
             //放入半连接队列(使用监听socket的hash)
             socks_queue[listen_hashval] -> syns_queue[0] = new_sock;
@@ -234,13 +258,21 @@ int tju_handle_packet(tju_tcp_t* sock, char* pkt){
                                             ,SYN_ACK, 0 , 0
                                             ,NULL ,0);
             sendToLayer3( shakehand2 , 20);
-            printf("发送shakehand2 \n");
+
+            #ifdef DEBUG_SHAKEHAND
+                printf("发送shakehand2 \n");
+            #endif
+
         }
         break;
 
     case SYN_SENT: //这是客户端的状态
         if(is_SYN(pkt) && is_ACK(pkt) ){ //状态判断不完全
-            printf("客户端收到S2\n");
+           
+            #ifdef DEBUG_SHAKEHAND
+                printf("客户端收到S2\n");
+            #endif
+
             sock->state = ESTABLISHED;
             int new_ack = get_seq(pkt) + 1;
             char* shakehand3; 
@@ -250,7 +282,10 @@ int tju_handle_packet(tju_tcp_t* sock, char* pkt){
                                             , ACK , 0 , 0
                                             , NULL ,0);
             sendToLayer3(shakehand3 , 20);
-            printf("发送shakehand3 \n");
+
+            #ifdef DEBUG_SHAKEHAND
+                printf("发送shakehand3 \n");
+            #endif
         }
         break;
 
@@ -261,7 +296,11 @@ int tju_handle_packet(tju_tcp_t* sock, char* pkt){
             socks_queue[listen_hashval] -> accept_queue[0] = socks_queue[listen_hashval] -> syns_queue[0];
             socks_queue[listen_hashval] -> syns_queue[0] = NULL;
             socks_queue[listen_hashval] -> accept_queue[0] -> state = ESTABLISHED;
-            printf("服务器socket建立完成\n");
+
+            #ifdef DEBUG_SHAKEHAND
+                printf("服务器socket建立完成\n");
+            #endif
+
         }
     default:
         break;

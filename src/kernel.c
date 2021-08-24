@@ -6,8 +6,11 @@
 //这个函数是把收到的包放进 socket 里面，如果有已经建立的socket，就直接放入，或者放入
 //listen socket中
 void onTCPPocket(char* pkt){
-    printf("get a packet \n");
-    display_pkt(pkt);
+
+    #ifdef DEBUG_PKTGET
+        display_pkt(pkt);
+    #endif
+
     // 当我们收到TCP包时 包中 源IP 源端口 是发送方的 也就是我们眼里的 远程(remote) IP和端口
     uint16_t remote_port = get_src(pkt);
     uint16_t local_port = get_dst(pkt);
@@ -34,7 +37,11 @@ void onTCPPocket(char* pkt){
 
     // 首先查找已经建立连接的socket哈希表
     if (established_socks[hashval]!=NULL){
-        printf("find socket in est_socks \n");
+
+        #ifdef DEBUG_PKTGET
+            printf("find socket in est_socks \n");
+        #endif
+
         tju_handle_packet(established_socks[hashval], pkt);
         return;
     }
@@ -43,7 +50,11 @@ void onTCPPocket(char* pkt){
     hashval = cal_hash(local_ip, local_port, 0, 0); //监听的socket只有本地监听ip和端口 没有远端
 
     if (listen_socks[hashval]!=NULL){
-        printf("find socket in listen_socks \n");
+
+        #ifdef DEBUG_PKTGET
+            printf("find socket in listen_socks \n");
+        #endif
+        
         tju_handle_packet(listen_socks[hashval], pkt);
         return;
     }

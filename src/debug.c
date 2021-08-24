@@ -15,3 +15,21 @@ void display_pkt(char* pkt){
     printf("ext: %d \n",get_ext(pkt));
     printf("==========================================\n");
 }
+
+void print_SKB(SKB_HEAD* head){
+    printf("==========================================\n");
+    printf("HEAD NODE \n");
+    printf("block_number：%d\n",head->block_number);
+    printf("total_Size：%d\n",head->total_size);
+    printf("\n");
+    if(head -> next != NULL){
+        SKB* node = head -> next;
+        while (node != NULL)
+        {
+            printf("%d -> ",node->len);
+            node = node -> next;
+        }
+    }
+    printf("\n");
+    printf("==========================================\n");
+}
